@@ -1,6 +1,6 @@
 services:
-  dashboard:
-    build: .
+  axiom-dashboard:
+    image: ghcr.io/sunbrolynk/axiom-dashboard:latest
     container_name: axiom-dashboard
     restart: unless-stopped
     ports:
@@ -8,22 +8,6 @@ services:
     env_file:
       - .env
     environment:
-      # Override the local MAXMIND path for container context
       - MAXMIND_DB_PATH=/app/backend/data/GeoLite2-City.mmdb
     volumes:
-      # Mount the MaxMind DB so it can be updated without rebuilding
       - ./backend/data:/app/backend/data:ro
-    # Uncomment below for Traefik reverse proxy
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.axiom-dash.rule=Host(`dashboard.yourdomain.xyz`)"
-    #   - "traefik.http.routers.axiom-dash.entrypoints=websecure"
-    #   - "traefik.http.routers.axiom-dash.tls.certresolver=letsencrypt"
-    #   - "traefik.http.services.axiom-dash.loadbalancer.server.port=8050"
-    # networks:
-    #   - traefik
-    
-# Uncomment if using Traefik
-# networks:
-#   traefik:
-#     external: true

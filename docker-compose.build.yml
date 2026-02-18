@@ -1,0 +1,6 @@
+# For development — build from source instead of pulling image
+# Usage: docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+services:
+  axiom-dashboard:
+    build: .
+    image: ghcr.io/sunbrolynk/axiom-dashboard:latest
