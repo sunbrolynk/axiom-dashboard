@@ -1,80 +1,66 @@
 # Axiom Geo Dashboard
 
-A real-time geographic heatmap dashboard for visualizing API request traffic from [Axiom](https://axiom.co) datasets. See where your users are, which endpoints they hit, and how your API performs — all on an interactive map.
+A real-time geographic heatmap dashboard for visualizing API request traffic from [Axiom](https://axiom.co) datasets.
 
 ## Features
 
-- **Interactive heatmap** — Google Maps with weighted heat visualization based on request volume
-- **Zoom-level detail** — zoomed out shows density heatmap, zoom in to see individual IP markers with request counts
-- **Live Axiom queries** — configurable time ranges (6h / 24h / 7d / 30d) powered by APL
-- **Local IP geolocation** — MaxMind GeoLite2 database for instant, unlimited IP → coordinate lookups
-- **Analytics sidebar** — top source IPs, status code breakdown, most-hit endpoints
+- **Interactive heatmap** — Google Maps with weighted heat visualization, zoom in to see individual IP markers
+- **Live Axiom queries** — configurable time ranges powered by APL
+- **Local IP geolocation** — MaxMind GeoLite2 for instant, unlimited lookups
+- **Analytics panels** — top source IPs, status codes, most-hit endpoints
 - **PWA** — installable on mobile with offline shell support
 - **Responsive** — desktop side panels + mobile bottom sheet
-- **Dockerized** — single container deployment with Traefik-ready labels
 
-## Screenshots
+## Deployment
 
-*Coming soon*
-
-## Quick Start
-
-### Prerequisites
-
-| Service | What you need | Link |
-|---------|--------------|------|
-| Axiom | API token with query permission on your dataset | [axiom.co](https://axiom.co) |
-| Google Maps | JavaScript API key with Maps JavaScript API enabled | [console.cloud.google.com](https://console.cloud.google.com) |
-| MaxMind | GeoLite2-City.mmdb database file | [maxmind.com](https://www.maxmind.com/en/geolite2/signup) |
-
-### Docker (recommended)
+### 1. Create your environment file
 ```bash
-git clone https://github.com/sunbrolynk/axiom-dashboard.git
-cd axiom-dashboard
-
 cp .env.example .env
-# Edit .env with your API keys and dataset name
-
-# Place your MaxMind database
-cp /path/to/GeoLite2-City.mmdb backend/data/
-
-docker compose up -d
 ```
 
-Dashboard available at `http://localhost:8050`
+### 2. Add your MaxMind database
 
-### Local Development
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
+Download `GeoLite2-City.mmdb` from [maxmind.com](https://www.maxmind.com/en/geolite2/signup) and place it at `backend/data/GeoLite2-City.mmdb`.
 
-cd backend
-python -m uvicorn server:app --host 0.0.0.0 --port 8050 --reload
+### 3. Start the container
+```yaml
+services:
+  axiom-dashboard:
+    image: ghcr.io/sunbrolynk/axiom-dashboard:latest
+    container_name: axiom-dashboard
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    env_file:
+      - .env
+    environment:
+      - MAXMIND_DB_PATH=/app/backend/data/GeoLite2-City.mmdb
+    volumes:
+      - ./backend/data:/app/backend/data:ro
 ```
-
-### Reverse Proxy (Traefik)
-
-Uncomment the labels and network sections in `docker-compose.yml` and update the hostname to your domain.
 
 ## Configuration
 
-All configuration is via environment variables (`.env` file):
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `AXIOM_API_TOKEN` | Axiom API token with query permission | Yes | — |
+| `AXIOM_DATASET` | Axiom dataset name to query | Yes | — |
+| `GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key | Yes | — |
+| `MAXMIND_DB_PATH` | Path to GeoLite2-City.mmdb inside container | No | Falls back to ip-api.com |
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `AXIOM_API_TOKEN` | Axiom API token with query permission | Yes |
-| `AXIOM_DATASET` | Axiom dataset name to query | Yes |
-| `GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key | Yes |
-| `MAXMIND_DB_PATH` | Path to GeoLite2-City.mmdb | No (falls back to ip-api.com) |
+### Axiom Dataset Requirements
 
-## Dataset Requirements
+Your dataset needs at minimum an `ip` field. The dashboard also uses these fields if present:
 
-Your Axiom dataset needs at minimum an `ip` field containing client IP addresses. The dashboard also utilizes these fields if present:
+| Field | Used for |
+|-------|----------|
+| `ip` | Geolocation + request counting |
+| `url` | Top endpoints breakdown |
+| `status` | Status code distribution |
 
-- `url` or `path` — request endpoint
-- `status` — HTTP status code
-- `method` — HTTP method
+### Google Maps API
+
+Enable **Maps JavaScript API** at [console.cloud.google.com](https://console.cloud.google.com). The $200/month free credit covers typical dashboard usage.
 
 ## Stack
 
@@ -82,10 +68,10 @@ Your Axiom dataset needs at minimum an `ip` field containing client IP addresses
 |-----------|------------|
 | Backend | Python, FastAPI, uvicorn |
 | Frontend | Vanilla JS, Google Maps Visualization API |
-| Geolocation | MaxMind GeoLite2 (ip-api.com fallback) |
-| Data | Axiom APL queries |
-| Deployment | Docker |
+| Geolocation | MaxMind GeoLite2 |
+| Data | Axiom APL |
+| CI/CD | GitHub Actions, ghcr.io |
 
 ## License
 
-MIT
+GPL-3.0
