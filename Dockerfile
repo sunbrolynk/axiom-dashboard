@@ -30,7 +30,8 @@ COPY frontend/ ./frontend/
 # NOT baked into the image. This keeps secrets out of the
 # image layers and lets you update the DB without rebuilding.
 
-# Switch to non-root user
+# Create data directory with correct ownership
+RUN mkdir -p /app/backend/data && chown -R dashboard:dashboard /app/backend/data
 USER dashboard
 
 # Expose the dashboard port
