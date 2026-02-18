@@ -31,6 +31,7 @@ else:
 AXIOM_TOKEN = os.getenv("AXIOM_API_TOKEN")
 AXIOM_DATASET = os.getenv("AXIOM_DATASET", "audimeta")
 MAXMIND_DB_PATH = os.getenv("MAXMIND_DB_PATH", "./backend/data/GeoLite2-City.mmdb")
+GOOGLE_MAPS_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # ---------------------------------------------------------------------------
 # MaxMind GeoIP reader (lazy-loaded)
@@ -340,7 +341,11 @@ frontend_dir = Path(__file__).parent.parent / "frontend"
 
 @app.get("/")
 async def serve_frontend():
-    return FileResponse(frontend_dir / "index.html")
+    """Serve frontend with Google Maps API key injected from environment."""
+    html = (frontend_dir / "index.html").read_text()
+    html = html.replace("__GOOGLE_MAPS_API_KEY__", GOOGLE_MAPS_KEY)
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(html)
 
 
 @app.get("/manifest.json")
