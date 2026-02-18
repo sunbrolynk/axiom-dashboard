@@ -79,25 +79,26 @@ def geocode_ip_maxmind(ip: str) -> Optional[dict]:
 
 async def geocode_ip_fallback(ip: str, client: httpx.AsyncClient) -> Optional[dict]:
     """
-    Fallback: query ip-api.com for geolocation.
-    Free tier: 45 requests/minute. We batch to stay under this.
+    Fallback: query ipwho.is for geolocation.
+    Free, HTTPS, no API key required, no hard rate limit.
     """
     try:
         resp = await client.get(
-            f"http://ip-api.com/json/{ip}",
-            params={"fields": "status,lat,lon,city,country,countryCode"},
+            f"https://ipwho.is/{ip}",
             timeout=5.0,
         )
         data = resp.json()
-        if data.get("status") == "success":
+        if data.get("success", False):
             return {
                 "ip": ip,
-                "lat": data["lat"],
-                "lng": data["lon"],
+                "lat": data["latitude"],
+                "lng": data["longitude"],
                 "city": data.get("city", "Unknown"),
                 "country": data.get("country", "Unknown"),
-                "country_code": data.get("countryCode", "??"),
+                "country_code": data.get("country_code", "??"),
             }
+        else:
+            logger.warning(f"Geolocation failed for {ip}: {data.get('message', 'unknown error')}")
     except Exception:
         pass
     return None
@@ -105,7 +106,7 @@ async def geocode_ip_fallback(ip: str, client: httpx.AsyncClient) -> Optional[di
 
 async def geocode_ips(ips: list[str]) -> list[dict]:
     """
-    Geocode a list of IPs. Uses MaxMind if available, otherwise ip-api.com.
+    Geocode a list of IPs. Uses MaxMind if available, otherwise ipwho.is.
     
     This is the "pluggable" function — the rest of the app calls this
     and doesn't care about the underlying implementation.
@@ -119,14 +120,13 @@ async def geocode_ips(ips: list[str]) -> list[dict]:
             if result:
                 results.append(result)
     else:
-        # Fallback path: external API, rate limited
+        # Fallback path: external HTTPS API
         async with httpx.AsyncClient() as client:
             for ip in ips:
                 result = await geocode_ip_fallback(ip, client)
                 if result:
                     results.append(result)
-                # Respect rate limit: 45/min ≈ 1 every 1.4 seconds
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(0.1)  # Brief courtesy delay
 
     return results
 
