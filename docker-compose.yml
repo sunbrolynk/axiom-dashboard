@@ -5,9 +5,10 @@ services:
     restart: unless-stopped
     ports:
       - "8050:8050"
-    env_file:
-      - .env
     environment:
+      - AXIOM_API_TOKEN=
+      - AXIOM_DATASET=
+      - GOOGLE_MAPS_API_KEY=
       - MAXMIND_DB_PATH=/app/backend/data/GeoLite2-City.mmdb
     volumes:
       - ./backend/data:/app/backend/data:ro

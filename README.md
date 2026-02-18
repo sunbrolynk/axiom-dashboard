@@ -13,16 +13,11 @@ A real-time geographic heatmap dashboard for visualizing API request traffic fro
 
 ## Deployment
 
-### 1. Create your environment file
-```bash
-cp .env.example .env
-```
-
-### 2. Add your MaxMind database
+### 1. Add your MaxMind database
 
 Download `GeoLite2-City.mmdb` from [maxmind.com](https://www.maxmind.com/en/geolite2/signup) and place it at `backend/data/GeoLite2-City.mmdb`.
 
-### 3. Start the container
+### 2. Start the container
 ```yaml
 services:
   axiom-dashboard:
@@ -31,13 +26,16 @@ services:
     restart: unless-stopped
     ports:
       - "8050:8050"
-    env_file:
-      - .env
     environment:
+      - AXIOM_API_TOKEN=
+      - AXIOM_DATASET=
+      - GOOGLE_MAPS_API_KEY=
       - MAXMIND_DB_PATH=/app/backend/data/GeoLite2-City.mmdb
     volumes:
       - ./backend/data:/app/backend/data:ro
 ```
+
+Fill in the environment variables and `docker compose up -d`.
 
 ## Configuration
 
