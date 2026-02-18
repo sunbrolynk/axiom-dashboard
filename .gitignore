@@ -1,0 +1,16 @@
+.env
+*.mmdb
+__pycache__/
+.venv/
+*.pyc
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

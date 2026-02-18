@@ -1,0 +1,85 @@
+# ──────────────────────────────────────────────────────────
+# CI Pipeline — runs on every push to main
+# 
+# What it does:
+#   1. Checks out the code
+#   2. Logs into GitHub Container Registry (ghcr.io)
+#   3. Builds the Docker image for amd64 + arm64
+#   4. Pushes as ghcr.io/sunbrolynk/axiom-dashboard:latest
+#
+# Multi-arch (amd64 + arm64) means the same image works on:
+#   - Regular x86 servers/desktops (amd64)
+#   - Raspberry Pi, Oracle Cloud free tier, Apple Silicon (arm64)
+# ──────────────────────────────────────────────────────────
+name: CI — Build & Push
+
+on:
+  push:
+    branches: [main]
+    # Don't rebuild on docs-only changes
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.env.example'
+
+# Only allow one CI run at a time per branch
+# If you push twice quickly, the first run is cancelled
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissions needed to push to ghcr.io
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Step 1: Check out code ────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Step 2: Set up multi-arch builder ─────────────────
+      # QEMU emulates ARM on the x86 GitHub runner so we can
+      # build arm64 images without needing an ARM machine
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Buildx is Docker's extended builder with multi-platform
+      # support and better caching
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Step 3: Log into ghcr.io ─────────────────────────
+      # GITHUB_TOKEN is automatically provided by Actions —
+      # no need to create a separate token
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Step 4: Build and push ────────────────────────────
+      # Tags:
+      #   - latest: always points to most recent main build
+      #   - sha-abc1234: pinned to exact commit for traceability
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/sunbrolynk/axiom-dashboard:latest
+            ghcr.io/sunbrolynk/axiom-dashboard:sha-${{ github.sha }}
+          # GitHub Actions cache speeds up repeat builds by
+          # reusing unchanged Docker layers
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/sunbrolynk/axiom-dashboard
+            org.opencontainers.image.description=Axiom Geo Dashboard

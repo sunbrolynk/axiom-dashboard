@@ -1,0 +1,29 @@
+# Production compose — pulls pre-built image from ghcr.io
+# Use this on servers instead of building locally:
+#   docker compose -f docker-compose.prod.yml up -d
+services:
+  dashboard:
+    image: ghcr.io/sunbrolynk/axiom-dashboard:latest
+    container_name: axiom-dashboard
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    env_file:
+      - .env
+    environment:
+      - MAXMIND_DB_PATH=/app/backend/data/GeoLite2-City.mmdb
+    volumes:
+      - ./backend/data:/app/backend/data:ro
+    # Uncomment for Traefik
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.axiom-dash.rule=Host(`dashboard.yourdomain.xyz`)"
+    #   - "traefik.http.routers.axiom-dash.entrypoints=websecure"
+    #   - "traefik.http.routers.axiom-dash.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.axiom-dash.loadbalancer.server.port=8050"
+    # networks:
+    #   - traefik
+
+# networks:
+#   traefik:
+#     external: true
