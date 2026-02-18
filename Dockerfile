@@ -43,7 +43,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # Run with uvicorn
 # --proxy-headers: trusts X-Forwarded-* from Traefik/nginx
 # --forwarded-allow-ips='*': allows any reverse proxy
-CMD ["python", "-m", "uvicorn", "backend.server:app", \
+CMD ["python", "-m", "uvicorn", "backend.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8050", \
      "--proxy-headers", \
