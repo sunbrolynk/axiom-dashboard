@@ -1,4 +1,4 @@
-const CACHE_NAME = 'axiom-dash-v2';
+const CACHE_NAME = 'axiom-dash-v3';
 
 const PRECACHE_URLS = [
     '/',

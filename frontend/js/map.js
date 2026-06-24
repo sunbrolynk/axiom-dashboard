@@ -1,19 +1,25 @@
 /**
- * Google Maps — heatmap, markers, and dark styling.
+ * Google Maps — deck.gl heatmap + AdvancedMarkerElement.
  *
- * Exports: initMap(), renderMap(geodata), panTo(lat, lng)
+ * Migration (June 2026):
+ *   - google.maps.visualization.HeatmapLayer → deck.gl HeatmapLayer
+ *   - google.maps.Marker → google.maps.marker.AdvancedMarkerElement
+ *   - libraries=visualization → libraries=marker
+ *   - Map requires mapId for AdvancedMarkerElement
  *
  * Zoom-level strategy:
- *   < 8  → HeatmapLayer (density blobs)
- *   >= 8 → Individual circle markers with click info windows
+ *   < 8  → deck.gl HeatmapLayer (density blobs)
+ *   >= 8 → Individual AdvancedMarkerElement with click info windows
  */
 
-/* global google */
+/* global google, deck */
 
-let map, heatmap, infoWindow;
+let map, infoWindow, deckOverlay;
 let markers = [];
+let currentGeodata = [];
 
-// Dark map styling
+// Dark map styling (applied via Cloud Console for vector maps,
+// but we keep this as fallback for raster)
 const MAP_STYLES = [
     { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
     { elementType: 'labels.text.stroke', stylers: [{ color: '#0d1117' }] },
@@ -27,17 +33,6 @@ const MAP_STYLES = [
     { featureType: 'transit', stylers: [{ visibility: 'off' }] },
 ];
 
-const HEATMAP_GRADIENT = [
-    'rgba(0, 0, 0, 0)',
-    'rgba(99, 102, 241, 0.2)',
-    'rgba(99, 102, 241, 0.4)',
-    'rgba(139, 92, 246, 0.6)',
-    'rgba(168, 85, 247, 0.7)',
-    'rgba(236, 72, 153, 0.8)',
-    'rgba(239, 68, 68, 0.9)',
-    'rgba(255, 255, 255, 1)',
-];
-
 
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
@@ -49,15 +44,18 @@ function initMap() {
         gestureHandling: 'greedy',
         zoomControlOptions: { position: google.maps.ControlPosition.LEFT_CENTER },
         styles: MAP_STYLES,
+        mapId: 'DEMO_MAP_ID',
     });
 
     infoWindow = new google.maps.InfoWindow();
 
+    // Initialize deck.gl overlay (starts with no layers)
+    deckOverlay = new deck.GoogleMapsOverlay({ layers: [] });
+    deckOverlay.setMap(map);
+
     // Switch between heatmap and markers based on zoom level
     map.addListener('zoom_changed', () => {
-        const zoom = map.getZoom();
-        if (heatmap) heatmap.setMap(zoom < 8 ? map : null);
-        markers.forEach(m => m.setMap(zoom >= 8 ? map : null));
+        updateVisibility();
     });
 
     // Trigger initial data load (defined in app.js)
@@ -65,41 +63,88 @@ function initMap() {
 }
 
 
-function renderMap(geodata) {
-    // Clear existing layers
-    markers.forEach(m => m.setMap(null));
-    markers = [];
-    if (heatmap) heatmap.setMap(null);
-    if (!geodata.length) return;
+function updateVisibility() {
+    const zoom = map.getZoom();
+    const showHeatmap = zoom < 8;
 
-    // Heatmap layer
-    const heatmapData = geodata.map(d => ({
-        location: new google.maps.LatLng(d.lat, d.lng),
-        weight: d.request_count,
-    }));
+    // Toggle deck.gl heatmap
+    if (deckOverlay && currentGeodata.length) {
+        deckOverlay.setProps({
+            layers: showHeatmap ? [createHeatmapLayer(currentGeodata)] : [],
+        });
+    }
 
-    heatmap = new google.maps.visualization.HeatmapLayer({
-        data: heatmapData,
-        map: map.getZoom() < 8 ? map : null,
-        radius: 50,
-        opacity: 0.75,
-        gradient: HEATMAP_GRADIENT,
+    // Toggle markers
+    markers.forEach(m => {
+        m.marker.map = showHeatmap ? null : map;
     });
+}
 
-    // Individual markers
+
+function createHeatmapLayer(geodata) {
+    return new deck.HeatmapLayer({
+        id: 'heatmap',
+        data: geodata,
+        getPosition: d => [d.lng, d.lat],
+        getWeight: d => d.request_count,
+        radiusPixels: 50,
+        intensity: 1,
+        threshold: 0.05,
+        colorRange: [
+            [99, 102, 241, 50],    // indigo, low opacity
+            [99, 102, 241, 100],   // indigo
+            [139, 92, 246, 150],   // purple
+            [168, 85, 247, 180],   // violet
+            [236, 72, 153, 200],   // pink
+            [239, 68, 68, 230],    // red
+            [255, 255, 255, 255],  // white (hottest)
+        ],
+    });
+}
+
+
+function createMarkerElement(requestCount) {
+    /**
+     * Build a custom HTML element for AdvancedMarkerElement.
+     * Replaces the old google.maps.Marker circle icon.
+     */
+    const size = Math.max(16, Math.log2(requestCount + 1) * 7);
+    const el = document.createElement('div');
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.borderRadius = '50%';
+    el.style.backgroundColor = 'rgba(99, 102, 241, 0.85)';
+    el.style.border = '2px solid #a5b4fc';
+    el.style.cursor = 'pointer';
+    el.style.transition = 'transform 0.15s';
+    el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2)'; });
+    el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+    return el;
+}
+
+
+function renderMap(geodata) {
+    // Clear existing markers
+    markers.forEach(m => { m.marker.map = null; });
+    markers = [];
+    currentGeodata = geodata;
+
+    if (!geodata.length) {
+        if (deckOverlay) deckOverlay.setProps({ layers: [] });
+        return;
+    }
+
+    // Create markers (hidden initially if zoomed out)
+    const showMarkers = map.getZoom() >= 8;
+
     geodata.forEach(d => {
-        const marker = new google.maps.Marker({
+        const markerEl = createMarkerElement(d.request_count);
+
+        const marker = new google.maps.marker.AdvancedMarkerElement({
             position: { lat: d.lat, lng: d.lng },
-            map: map.getZoom() >= 8 ? map : null,
+            map: showMarkers ? map : null,
             title: `${d.city} — ${d.request_count.toLocaleString()} requests`,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: Math.max(8, Math.log2(d.request_count + 1) * 3.5),
-                fillColor: '#6366f1',
-                fillOpacity: 0.85,
-                strokeColor: '#a5b4fc',
-                strokeWeight: 2,
-            },
+            content: markerEl,
         });
 
         marker.addListener('click', () => {
@@ -116,8 +161,11 @@ function renderMap(geodata) {
             infoWindow.open(map, marker);
         });
 
-        markers.push(marker);
+        markers.push({ marker, data: d });
     });
+
+    // Set up deck.gl heatmap
+    updateVisibility();
 
     // Fit bounds with padding for floating panels
     if (geodata.length > 1) {

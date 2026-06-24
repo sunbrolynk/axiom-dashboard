@@ -39,7 +39,7 @@ EXPOSE 8050
 
 # Health check — Docker/Portainer can monitor this
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8050/api/stats?hours=1')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8050/')" || exit 1
 
 # Run with uvicorn
 # --proxy-headers: trusts X-Forwarded-* from Traefik/nginx

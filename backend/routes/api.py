@@ -22,7 +22,12 @@ async def get_geodata(hours: int = Query(default=24, ge=1, le=720)):
     2. Geocodes each IP to lat/lng
     3. Merges and returns the combined data
     """
-    ip_data = await query_ip_counts(hours=hours)
+    try:
+        ip_data = await query_ip_counts(hours=hours)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Axiom query failed: {e}")
+        return []
     if not ip_data:
         return []
 

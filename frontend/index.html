@@ -94,11 +94,14 @@
     </div>
 </div>
 
+<!-- deck.gl for heatmap visualization (replaces deprecated Google HeatmapLayer) -->
+<script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+
 <!-- Scripts: order matters — map.js and ui.js define functions, app.js uses them -->
 <script src="/static/js/map.js"></script>
 <script src="/static/js/ui.js"></script>
 <script src="/static/js/app.js"></script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&libraries=visualization&callback=initMap"></script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&libraries=marker&callback=initMap"></script>
 
 </body>
 </html>
